@@ -1,6 +1,30 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
+import os from 'os'
+import { execSync } from 'child_process'
 import { preferencesService } from './services/PreferencesService'
+
+// Fix PATH in packaged mode: GUI-launched Electron apps don't inherit the user's shell PATH,
+// so tools like `node`, `claude`, `openscad` may not be found.
+if (app.isPackaged) {
+  try {
+    const shell = process.env.SHELL || '/bin/bash'
+    const shellPath = execSync(`${shell} -ilc "echo -n \\$PATH"`, { encoding: 'utf8', timeout: 5000 })
+    if (shellPath) {
+      process.env.PATH = shellPath
+    }
+  } catch {
+    // Fallback: append common user paths
+    const home = os.homedir()
+    const extras = [
+      `${home}/.local/bin`,
+      `${home}/.nvm/current/bin`,
+      `${home}/.local/share/mise/shims`,
+      '/usr/local/bin',
+    ].join(':')
+    process.env.PATH = `${extras}:${process.env.PATH || ''}`
+  }
+}
 
 // E2E Debug: Write to stderr immediately to verify module loads
 console.error('[E2E Debug] Main process module loading...')

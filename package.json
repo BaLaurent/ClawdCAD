@@ -45,12 +45,14 @@
     "@monaco-editor/react": "^4.6.0",
     "@react-three/drei": "^9.93.0",
     "@react-three/fiber": "^8.15.0",
+    "chokidar": "^3.6.0",
     "electron-store": "^8.2.0",
     "isomorphic-git": "^1.25.6",
     "monaco-editor": "^0.45.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.160.0",
+    "zod": "^4.3.6",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
@@ -95,10 +97,13 @@
       {
         "from": "resources/openscad",
         "to": "openscad",
-        "filter": ["**/*", "!.gitkeep"]
+        "filter": [
+          "**/*",
+          "!.gitkeep"
+        ]
       }
     ],
-    "asar": true,
+    "asar": false,
     "win": {
       "target": "nsis",
       "icon": "build/icon.png"
@@ -113,7 +118,10 @@
       "category": "public.app-category.graphics-design"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "build/icon.png",
       "category": "Graphics"
     }
