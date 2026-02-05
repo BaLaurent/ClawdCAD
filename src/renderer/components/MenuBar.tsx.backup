@@ -1,0 +1,237 @@
+import { useState, useRef, useEffect } from 'react'
+
+type MenuItem =
+  | {
+      separator: true
+    }
+  | {
+      label: string
+      onClick?: () => void
+      separator?: false
+      submenu?: MenuItem[]
+      disabled?: boolean
+      shortcut?: string
+    }
+
+interface MenuBarProps {
+  theme: 'light' | 'dark'
+  onOpenProject?: () => void
+  onOpenFile?: () => void
+  onSave?: () => void
+  onSaveAs?: () => void
+  onCloseProject?: () => void
+  onNewProject?: () => void
+  recentProjects?: Array<{ name: string; path: string }>
+  onOpenRecentProject?: (path: string) => void
+  onExport?: () => void
+  onCompile?: () => void
+  hasProjectOpen?: boolean
+}
+
+export default function MenuBar({
+  theme,
+  onOpenProject,
+  onOpenFile,
+  onSave,
+  onSaveAs,
+  onCloseProject,
+  onNewProject,
+  recentProjects = [],
+  onOpenRecentProject,
+  onExport,
+  onCompile,
+  hasProjectOpen = false,
+}: MenuBarProps) {
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null)
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Theme colors
+  const bgColor = theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+  const textColor = theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+  const hoverBg = theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+  const dropdownBg = theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+  const borderColor = theme === 'dark' ? 'border-gray-600' : 'border-gray-300'
+  const disabledColor = theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+  const separatorColor = theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+
+  // Build menu structure
+  const menus: Record<string, MenuItem[]> = {
+    File: [
+      { label: 'New Project...', onClick: onNewProject, shortcut: 'Ctrl+N' },
+      { separator: true },
+      { label: 'Open Project...', onClick: onOpenProject, shortcut: 'Ctrl+O' },
+      { label: 'Open File...', onClick: onOpenFile, shortcut: 'Ctrl+Shift+O' },
+      {
+        label: 'Recent Projects',
+        submenu:
+          recentProjects.length > 0
+            ? recentProjects.map((rp) => ({
+                label: rp.name,
+                onClick: () => onOpenRecentProject?.(rp.path),
+              }))
+            : [{ label: 'No recent projects', disabled: true }],
+      },
+      { separator: true },
+      { label: 'Close Project', onClick: onCloseProject, disabled: !hasProjectOpen },
+      { separator: true },
+      { label: 'Save', onClick: onSave, shortcut: 'Ctrl+S', disabled: !hasProjectOpen },
+      { label: 'Save As...', onClick: onSaveAs, shortcut: 'Ctrl+Shift+S', disabled: !hasProjectOpen },
+      { separator: true },
+      { label: 'Export STL...', onClick: onExport, disabled: !hasProjectOpen },
+    ],
+    Edit: [
+      { label: 'Undo', disabled: true, shortcut: 'Ctrl+Z' },
+      { label: 'Redo', disabled: true, shortcut: 'Ctrl+Y' },
+      { separator: true },
+      { label: 'Cut', disabled: true, shortcut: 'Ctrl+X' },
+      { label: 'Copy', disabled: true, shortcut: 'Ctrl+C' },
+      { label: 'Paste', disabled: true, shortcut: 'Ctrl+V' },
+    ],
+    View: [
+      { label: 'Toggle Console', disabled: true, shortcut: 'Ctrl+`' },
+      { separator: true },
+      { label: 'Zoom In', disabled: true, shortcut: 'Ctrl+=' },
+      { label: 'Zoom Out', disabled: true, shortcut: 'Ctrl+-' },
+      { label: 'Reset Zoom', disabled: true, shortcut: 'Ctrl+0' },
+    ],
+    Build: [
+      { label: 'Compile', onClick: onCompile, shortcut: 'Ctrl+Shift+B' },
+      { separator: true },
+      { label: 'Auto-compile', disabled: true },
+    ],
+    Help: [
+      { label: 'OpenSCAD Documentation', disabled: true },
+      { label: 'ClawdCAD Guide', disabled: true },
+      { separator: true },
+      { label: 'About ClawdCAD', disabled: true },
+    ],
+  }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!openMenu) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      const isInsideMenu = Object.values(menuRefs.current).some((ref) => ref?.contains(target))
+      if (!isInsideMenu) {
+        setOpenMenu(null)
+        setHoveredMenu(null)
+      }
+    }
+    // Delay to avoid catching the click that opened the menu
+    const timer = setTimeout(() => document.addEventListener('mousedown', handleClickOutside), 0)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenu])
+
+  // Handle menu item click
+  const handleMenuClick = (menuName: string) => {
+    if (openMenu === menuName) {
+      setOpenMenu(null)
+      setHoveredMenu(null)
+    } else {
+      setOpenMenu(menuName)
+      setHoveredMenu(null)
+    }
+  }
+
+  // Handle menu hover when a menu is already open
+  const handleMenuHover = (menuName: string) => {
+    if (openMenu) {
+      setOpenMenu(menuName)
+      setHoveredMenu(null)
+    } else {
+      setHoveredMenu(menuName)
+    }
+  }
+
+  const handleItemClick = (item: MenuItem) => {
+    if (item.separator) return
+    if (item.disabled) return
+    if (item.submenu) return
+    item.onClick?.()
+    setOpenMenu(null)
+    setHoveredMenu(null)
+  }
+
+  const renderMenuItem = (item: MenuItem, index: number) => {
+    if (item.separator) {
+      return <div key={`sep-${index}`} className={`my-1 border-t ${separatorColor}`} />
+    }
+
+    if (item.submenu) {
+      return (
+        <div
+          key={index}
+          className={`group relative px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${
+            item.disabled ? disabledColor : textColor
+          } ${!item.disabled && hoverBg}`}
+          onMouseEnter={() => !item.disabled && setHoveredMenu(`submenu-${index}`)}
+          onMouseLeave={() => setHoveredMenu(null)}
+        >
+          <span>{item.label}</span>
+          <span className="ml-4 text-gray-500">▸</span>
+          {/* Submenu dropdown */}
+          {hoveredMenu === `submenu-${index}` && !item.disabled && (
+            <div
+              className={`absolute left-full top-0 ml-1 ${dropdownBg} border ${borderColor} rounded shadow-lg min-w-[200px] z-50`}
+              onMouseEnter={() => setHoveredMenu(`submenu-${index}`)}
+            >
+              {item.submenu.map((subItem, subIndex) => renderMenuItem(subItem, subIndex))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <button
+        key={index}
+        className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${
+          item.disabled ? `${disabledColor} cursor-not-allowed` : `${textColor} ${hoverBg} cursor-pointer`
+        }`}
+        onClick={() => handleItemClick(item)}
+        disabled={item.disabled}
+        data-testid={`menu-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+      >
+        <span>{item.label}</span>
+        {item.shortcut && <span className="ml-4 text-xs text-gray-500">{item.shortcut}</span>}
+      </button>
+    )
+  }
+
+  return (
+    <div className={`${bgColor} ${textColor} border-b ${borderColor} px-2 py-1 flex items-center font-['Inter',sans-serif]`} data-testid="menu-bar">
+      {Object.keys(menus).map((menuName) => (
+        <div
+          key={menuName}
+          ref={(el) => (menuRefs.current[menuName] = el)}
+          className="relative"
+          onMouseEnter={() => handleMenuHover(menuName)}
+        >
+          <button
+            className={`px-3 py-1 text-sm rounded ${
+              openMenu === menuName || hoveredMenu === menuName ? hoverBg : ''
+            }`}
+            onClick={() => handleMenuClick(menuName)}
+            data-testid={`menu-${menuName.toLowerCase()}`}
+          >
+            {menuName}
+          </button>
+          {/* Dropdown */}
+          {openMenu === menuName && (
+            <div
+              className={`absolute top-full left-0 mt-1 ${dropdownBg} border ${borderColor} rounded shadow-lg min-w-[240px] z-50`}
+              data-testid={`menu-dropdown-${menuName.toLowerCase()}`}
+            >
+              {menus[menuName].map((item, index) => renderMenuItem(item, index))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}

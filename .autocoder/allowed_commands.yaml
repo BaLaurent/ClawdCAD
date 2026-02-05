@@ -1,0 +1,152 @@
+# Project-Specific Allowed Commands
+# ==================================
+# Location: {project_dir}/.autocoder/allowed_commands.yaml
+#
+# This file defines bash commands that the autonomous coding agent can use
+# for THIS SPECIFIC PROJECT, beyond the default allowed commands.
+#
+# When you create a new project, AutoCoder automatically creates this file
+# in your project's .autocoder/ directory. You can customize it for your
+# project's specific needs (iOS, Rust, Python, etc.).
+
+version: 1
+
+# Uncomment the commands you need for your specific project.
+# By default, this file has NO commands enabled - you must explicitly add them.
+
+commands:
+  # ==========================================
+  # Search & File Tools
+  # ==========================================
+  - name: find
+    description: Search for files and directories in the filesystem
+  - name: rg
+    description: ripgrep - fast recursive text search tool
+  - name: sed
+    description: Stream editor for text transformation
+  - name: perl
+    description: Perl for text processing and in-place file editing
+  - name: base64
+    description: Base64 encoding/decoding utility
+  - name: sort
+    description: Sort lines of text
+  - name: uniq
+    description: Filter duplicate lines
+  - name: cut
+    description: Cut sections from lines
+  - name: tr
+    description: Translate or delete characters
+  - name: diff
+    description: Compare files line by line
+  - name: xargs
+    description: Build and execute commands from input
+  - name: tee
+    description: Read from stdin and write to stdout and files
+  - name: realpath
+    description: Resolve file paths
+  - name: dirname
+    description: Strip last component from file name
+  - name: basename
+    description: Strip directory from file name
+  - name: stat
+    description: Display file status
+  - name: file
+    description: Determine file type
+  - name: tree
+    description: List directory contents in tree format
+  - name: which
+    description: Locate a command
+  - name: env
+    description: Display or set environment variables
+  - name: date
+    description: Display date and time
+  - name: whoami
+    description: Display current user name
+  - name: uname
+    description: Print system information
+
+  # ==========================================
+  # OpenSCAD & 3D Tools
+  # ==========================================
+  - name: openscad
+    description: OpenSCAD CLI for rendering and exporting 3D models
+
+  # ==========================================
+  # Node.js / Electron Development
+  # ==========================================
+  - name: node
+    description: Node.js JavaScript runtime for running scripts
+  - name: tsc
+    description: TypeScript compiler
+  - name: tsx
+    description: TypeScript execute - run TS files directly
+  - name: electron
+    description: Electron framework for desktop app
+  - name: electron-builder
+    description: Build and package Electron applications
+  - name: vitest
+    description: Vitest test runner
+  - name: playwright
+    description: Playwright E2E test runner
+  - name: eslint
+    description: JavaScript/TypeScript linter
+  - name: prettier
+    description: Code formatter
+  - name: vite
+    description: Vite dev server and bundler
+  - name: esbuild
+    description: Fast JavaScript bundler
+  - name: tailwindcss
+    description: Tailwind CSS CLI
+  - name: postcss
+    description: PostCSS CLI
+
+  # ==========================================
+  # Package Management & Utilities
+  # ==========================================
+  - name: yarn
+    description: Yarn package manager
+  - name: corepack
+    description: Node.js package manager manager
+  - name: nvm
+    description: Node version manager
+  - name: jq
+    description: JSON processor
+  - name: sqlite3
+    description: SQLite database CLI
+  - name: tar
+    description: Archive utility
+  - name: gzip
+    description: Compress files
+  - name: gunzip
+    description: Decompress files
+  - name: zip
+    description: Create zip archives
+  - name: unzip
+    description: Extract zip archives
+  - name: wget
+    description: Download files from the web
+  - name: python3
+    description: Python 3 interpreter
+  - name: pip3
+    description: Python package installer
+  - name: md5sum
+    description: Compute MD5 checksums
+  - name: sha256sum
+    description: Compute SHA256 checksums
+  - name: wc
+    description: Word, line, and byte count
+
+  # ==========================================
+  # Network & Debugging
+  # ==========================================
+  - name: nc
+    description: Netcat for network connections
+  - name: ss
+    description: Socket statistics
+  - name: ping
+    description: Test network connectivity
+  - name: host
+    description: DNS lookup utility
+  - name: nslookup
+    description: DNS query tool

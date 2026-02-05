@@ -1,0 +1,799 @@
+<project_specification>
+  <project_name>ClawdCAD</project_name>
+
+  <overview>
+    ClawdCAD is an all-in-one desktop application for parametric 3D modeling using OpenSCAD code.
+    It combines a modern code editor (Monaco Editor), an AI assistant (Claude via Agent SDK) capable
+    of generating and iterating on OpenSCAD code from natural language, a real-time 3D viewer
+    (Three.js), and native Git version control — all in a single Electron shell.
+
+    The application follows a strict client-only, offline-first architecture: zero proprietary servers,
+    all data stays on the user's machine, and AI features are optional (BYOK model). It targets
+    makers, hobbyists, and side-project developers who use 3D printing.
+
+    Key design goals: zero-config installation (OpenSCAD binary embedded), sovereign data ownership
+    (user controls files, Git history, remotes), and a seamless code-to-print workflow without
+    juggling multiple tools.
+  </overview>
+
+  <technology_stack>
+    <desktop_shell>
+      <framework>Electron (Chromium + Node.js)</framework>
+      <justification>Full filesystem access, subprocess spawning for OpenSCAD, mature NPM ecosystem. Bundle size (~250-300MB) acceptable for desktop app.</justification>
+      <rejected_alternatives>Tauri (Rust backend too complex for rapid prototyping), PWA (cannot execute local binaries)</rejected_alternatives>
+    </desktop_shell>
+
+    <renderer>
+      <framework>React 18+ with TypeScript</framework>
+      <bundler>Vite</bundler>
+      <state_management>Zustand (lightweight, no boilerplate)</state_management>
+      <code_editor>Monaco Editor (VS Code engine) with custom OpenSCAD language definition</code_editor>
+      <viewer_3d>Three.js via @react-three/fiber and @react-three/drei</viewer_3d>
+      <styling>Tailwind CSS with dark/light theme support</styling>
+    </renderer>
+
+    <main_process>
+      <runtime>Node.js (Electron main process)</runtime>
+      <openscad_integration>Embedded OpenSCAD CLI binary (headless, one per platform: Windows, macOS, Linux). Executed via child_process.spawn() with shell: false.</openscad_integration>
+      <git_engine>isomorphic-git (pure JavaScript, no external git binary required)</git_engine>
+      <keystore>electron.safeStorage (OS-native credential encryption: Keychain on macOS, Credential Manager on Windows, libsecret on Linux)</keystore>
+      <ai_client>Anthropic Claude Agent SDK, API calls from Main Process only (key never exposed to Renderer)</ai_client>
+      <file_watching>chokidar for external modification detection</file_watching>
+      <preferences>electron-store (JSON config file)</preferences>
+    </main_process>
+
+    <communication>
+      <ipc>Electron IPC (ipcMain / ipcRenderer) with contextBridge preload script. All Main Process services exposed through typed IPC channels.</ipc>
+      <security>contextIsolation: true, nodeIntegration: false, sandbox: true</security>
+    </communication>
+
+    <external_services>
+      <anthropic_api>api.anthropic.com — Claude API for AI features (BYOK, optional)</anthropic_api>
+      <git_remotes>Any HTTPS Git remote (GitHub, GitLab, Gitea, etc.) — user-configured, token-authenticated</git_remotes>
+    </external_services>
+
+    <build_and_ci>
+      <bundler>Vite for Renderer, TypeScript compiler for Main Process</bundler>
+      <packager>electron-builder (NSIS for Windows, DMG for macOS, AppImage/deb for Linux)</packager>
+      <testing>Vitest (unit/integration), React Testing Library (components), Playwright (E2E with Electron support)</testing>
+      <ci>GitHub Actions with matrix build (Windows, macOS, Linux)</ci>
+      <auto_update>electron-updater via GitHub Releases</auto_update>
+    </build_and_ci>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Node.js 20+ with npm
+      - Platform-specific OpenSCAD CLI binaries placed in resources/openscad/{win,mac,linux}/
+      - Anthropic API key (optional, for AI features — user provides their own)
+      - Code signing certificates for distribution (Apple Developer ID for macOS, EV certificate for Windows)
+    </environment_setup>
+    <user_requirements>
+      - No external software installation required (OpenSCAD embedded, Git via isomorphic-git)
+      - Windows 10+, macOS 11+, or Ubuntu 20.04+
+      - Minimum 4 GB RAM (8 GB recommended)
+      - GPU: Intel HD 4000+ (dedicated GPU recommended for complex models)
+      - Internet connection only required for AI features and Git remote operations
+    </user_requirements>
+  </prerequisites>
+
+  <architecture>
+    <overview>
+      Electron process-based architecture with strict separation between Main Process (Node.js)
+      and Renderer Process (React). All sensitive operations (filesystem, subprocess, API calls,
+      credential storage) run in Main Process. Renderer communicates exclusively via typed IPC channels
+      through a contextBridge preload script.
+    </overview>
+
+    <main_process_services>
+      - IPC Router: dispatches Renderer requests to appropriate services
+      - FileSystem Service: read/write/watch project files with path jail enforcement
+      - OpenSCAD Runner: subprocess management with argument whitelist, timeout, and compilation queue
+      - Git Service: isomorphic-git operations (init, commit, push, pull, branch, diff, log)
+      - Keystore Service: encrypt/decrypt API key and Git tokens via electron.safeStorage
+      - Claude API Client: Agent SDK bridge, context assembly, streaming response forwarding
+      - File Watcher: chokidar-based external modification detection
+    </main_process_services>
+
+    <renderer_components>
+      - UI Shell / Layout Manager: resizable panels (editor, viewer, chat, git)
+      - Monaco Editor: OpenSCAD syntax, error markers, multi-file tabs, diff view
+      - Viewer 3D: React Three Fiber canvas with OrbitControls, grid, axes, STL loader
+      - Chat Panel: conversation UI with message history, code apply button, streaming display
+      - Git Panel: status, staging, commit, branch list, log, diff viewer
+      - Project Manager: file tree with create/rename/delete, recent projects
+      - Settings Panel: preferences, API key configuration, Git remote setup
+    </renderer_components>
+
+    <project_structure>
+      ClawdCAD/
+      ├── src/
+      │   ├── main/                    # Main process (Node.js)
+      │   │   ├── ipc/                 # IPC handlers by domain (file, openscad, git, ai, keystore)
+      │   │   ├── services/            # OpenScadRunner, GitService, ClaudeAgent, KeystoreService, FileWatcher
+      │   │   └── main.ts
+      │   ├── renderer/                # Renderer process (React)
+      │   │   ├── components/          # Editor/, Viewer3D/, Chat/, Git/, ProjectTree/, Settings/, Layout/
+      │   │   ├── hooks/               # useOpenScad, useGit, useAI, useProject
+      │   │   ├── stores/              # Zustand stores
+      │   │   ├── ipc/                 # Typed IPC client
+      │   │   └── App.tsx
+      │   ├── shared/                  # Types and IPC channel definitions shared between processes
+      │   └── preload/                 # contextBridge API
+      ├── resources/openscad/          # Embedded binaries (win/, mac/, linux/)
+      ├── electron-builder.yml
+      ├── package.json
+      ├── tsconfig.json
+      └── vite.config.ts
+    </project_structure>
+  </architecture>
+
+  <core_features>
+    <code_editor>
+      - OpenSCAD syntax highlighting (keywords: module, function, if, for, let, use, include; types, operators, comments, strings)
+      - Multi-file editing with tabs and unsaved-changes indicator
+      - Inline error markers from OpenSCAD stderr (squiggly lines + tooltip via editor.setModelMarkers)
+      - Auto-indentation after {, [, and module blocks
+      - Find and replace with regex support (file and project-wide)
+      - Bracket matching and auto-close
+      - Debounced auto-compilation (1500ms configurable delay after last keystroke)
+      - Manual compilation trigger (Ctrl+Shift+B / Cmd+Shift+B)
+      - Status bar indicator: Compiling… / ✓ Ready / ✗ Error
+      - Code folding for module, function, if, for blocks
+      - Minimap side panel
+      - Basic auto-complete for OpenSCAD keywords and project-defined modules/functions
+      - Dark and light themes
+      - Configurable font size and tab size
+      - OpenSCAD snippet templates (module, difference, for loop patterns)
+    </code_editor>
+
+    <openscad_compiler>
+      - Subprocess execution of embedded OpenSCAD CLI binary
+      - Interface: compile(inputPath, outputPath, format, options) → {success, stdout, stderr, errors[], duration}
+      - Supported output formats: STL (ASCII/binary), OBJ, AMF, 3MF, PNG (preview)
+      - Variable injection via -D flag with input validation (alphanumeric + . + - only)
+      - Configurable timeout (default 30s, SIGKILL on expiry)
+      - Serialized compilation queue: one process at a time, new request cancels in-progress
+      - SHA256 content hash cache: skip recompilation if file unchanged
+      - Error parsing: extract type (ERROR/WARNING), line number, message from stderr
+    </openscad_compiler>
+
+    <viewer_3d>
+      - STL loading and rendering (ASCII and binary formats) via Three.js STLLoader
+      - Orbital controls: rotate (left click), zoom (scroll), pan (right click) via drei OrbitControls
+      - Reference grid: XY plane with mm graduation, colored axes (X=red, Y=green, Z=blue)
+      - Default lighting: ambient + 2 directional lights for surface relief visibility
+      - Home/reset view button (isometric default angle)
+      - Display modes: solid, wireframe, solid+wireframe toggle
+      - Point-to-point measurement tool (click two mesh points to measure distance)
+      - Clipping plane tool for cross-section inspection
+      - Configurable background color
+      - Screenshot export (PNG via renderer.domElement.toDataURL)
+      - Performance targets: 60 FPS for models under 500K triangles, 30 FPS for 500K-2M with auto LOD
+      - STL parsing in Web Worker to avoid UI thread blocking
+      - Warning and auto-simplification for models exceeding 2M triangles
+    </viewer_3d>
+
+    <git_version_control>
+      - git init: initialize repo in project folder
+      - git add / git status: staging UI with modified/added/deleted indicators
+      - git commit: message input field + commit button
+      - git log: scrollable commit history with message, author, date, hash
+      - git diff: split-view diff in Monaco diff editor (working copy vs HEAD)
+      - git branch: create, switch, list branches
+      - git merge: fast-forward merge with conflict alert (manual resolution in editor)
+      - git clone: clone from HTTPS remote
+      - git push / git pull: sync with remote, token-based authentication
+      - git remote: configure remote URL and credentials
+      - Auto-generated .gitignore for build artifacts (.stl, .obj, .amf, .3mf, temp files)
+      - Diff between any two commits (select in log → view diff)
+      - Authentication: Personal Access Token stored in OS keystore, passed via isomorphic-git onAuth callback
+      - SSH not supported in V1 (HTTPS + token only)
+    </git_version_control>
+
+    <ai_assistant>
+      <chat_mode>
+        - Side panel conversational interface with message history
+        - Claude generates OpenSCAD code from natural language descriptions
+        - "Apply" button to insert/replace code in editor at cursor position
+        - Automatic context: current file content sent with every prompt (no manual copy-paste)
+        - Per-project conversation history persisted locally in JSON
+        - Streaming response display (Server-Sent Events)
+        - Multi-language support (French and English, Claude auto-adapts)
+      </chat_mode>
+      <agent_iterative_mode>
+        - Autonomous loop: generate code → compile → analyze errors → correct → repeat
+        - Configurable max iterations (default: 5)
+        - Configurable token budget per agent request (default: 50,000 tokens)
+        - User confirmation before applying final code (diff view)
+        - Full iteration logging visible in chat (generated code, errors, corrections at each step)
+        - Cancel button: abort loop at any time, revert to pre-agent code state
+      </agent_iterative_mode>
+      <context_builder>
+        - Always includes: current file content, conversation history (last 10 messages), system prompt
+        - Conditionally includes: compilation errors (if present), project file structure (names only), included file contents (if use/include directives present)
+        - Intelligent truncation if context exceeds 80% of model window: oldest conversation history first → included files → project structure
+        - Absolute paths stripped from all context (relative paths only)
+        - No system information sent (hostname, username, OS version)
+        - System prompt defines Claude as OpenSCAD expert, enforces valid code output, French comments, no absolute paths
+      </context_builder>
+    </ai_assistant>
+
+    <project_management>
+      - Open folder as project: file tree display with type-based icons (.scad, .stl, .json)
+      - Create / rename / delete files and folders (right-click context menu with confirmation)
+      - File watcher: detect external modifications, auto-reload editor and trigger recompilation
+      - Recent projects list on app launch
+      - Drag-and-drop file reorganization within tree
+    </project_management>
+
+    <settings_and_preferences>
+      - editor.theme: dark | light (default: dark)
+      - editor.fontSize: number (default: 14)
+      - editor.tabSize: number (default: 4)
+      - editor.autoCompile: boolean (default: true)
+      - editor.autoCompileDelay: number ms (default: 1500)
+      - compiler.timeout: number ms (default: 30000)
+      - agent.maxIterations: number (default: 5)
+      - agent.maxTokens: number (default: 50000)
+      - viewer.backgroundColor: hex string (default: #1a1a2e)
+      - viewer.showGrid: boolean (default: true)
+      - viewer.showAxes: boolean (default: true)
+      - language: fr | en (default: fr)
+      - All preferences stored via electron-store (JSON)
+    </settings_and_preferences>
+
+    <export>
+      - STL export (ASCII and binary) via OpenSCAD CLI
+      - OBJ export via OpenSCAD CLI
+      - AMF export via OpenSCAD CLI
+      - 3MF export via OpenSCAD CLI
+      - PNG preview export via OpenSCAD CLI (--camera flag)
+      - Viewport screenshot (PNG/JPG via Three.js canvas capture, save-as dialog)
+    </export>
+  </core_features>
+
+  <user_profiles>
+    <!--
+      Client-only, single-user app. No authentication system.
+      Two usage profiles based on API key configuration.
+    -->
+    <standard_profile>
+      - No API key configured
+      - Full access to: editor, compiler, viewer, Git (local), export, project management
+      - AI features disabled (chat panel shows setup prompt)
+    </standard_profile>
+
+    <ai_enabled_profile>
+      - Anthropic API key configured and stored in OS keystore
+      - All standard features plus: chat panel, agent iterative mode
+      - Consent dialog on first AI use (code sent to Anthropic API)
+      - Persistent visual indicator in chat: data sent to external API
+    </ai_enabled_profile>
+  </user_profiles>
+
+  <security>
+    <threat_model>
+      <T1_api_key_leak>
+        <risk>Anthropic API key exposed to attacker</risk>
+        <mitigation>electron.safeStorage.encryptString() for storage. Key never leaves Main Process. Never in logs, stderr, or error messages. Renderer makes IPC requests, not direct HTTP calls.</mitigation>
+      </T1_api_key_leak>
+      <T2_command_injection>
+        <risk>Malicious input injected into OpenSCAD subprocess arguments</risk>
+        <mitigation>child_process.spawn() with shell: false. Arguments built programmatically, never string-concatenated. Paths validated via path.resolve() + project directory jail. Variables via -D validated: alphanumeric + . + - only.</mitigation>
+      </T2_command_injection>
+      <T3_path_traversal>
+        <risk>Access to files outside project directory</risk>
+        <mitigation>All file operations check canonical path (fs.realpathSync) is within project root. Symlinks resolved before validation, rejected if pointing outside project. Filenames sanitized: no .., no / or \ in names.</mitigation>
+      </T3_path_traversal>
+      <T4_data_leak_to_api>
+        <risk>Sensitive user data sent to Anthropic API</risk>
+        <mitigation>Context Builder strips absolute paths (relative only). No system info (hostname, username, OS). Explicit consent dialog on first AI use. Permanent visual indicator in chat panel.</mitigation>
+      </T4_data_leak_to_api>
+      <T5_xss_electron>
+        <risk>Cross-site scripting in Electron Renderer</risk>
+        <mitigation>nodeIntegration: false. contextIsolation: true. sandbox: true. Strict CSP: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://api.anthropic.com. webSecurity never disabled.</mitigation>
+      </T5_xss_electron>
+      <T6_supply_chain>
+        <risk>Malicious NPM dependencies</risk>
+        <mitigation>package-lock.json versioned, npm ci only. npm audit in CI pipeline blocking on critical. Minimal dependencies policy. Dependabot/Renovate with mandatory review.</mitigation>
+      </T6_supply_chain>
+      <T7_git_credentials>
+        <risk>Git tokens stored in plaintext</risk>
+        <mitigation>Same mechanism as T1: electron.safeStorage encryption. Tokens never in Renderer process.</mitigation>
+      </T7_git_credentials>
+      <T8_malicious_repo>
+        <risk>Cloned repo contains malicious code</risk>
+        <mitigation>No git hooks executed on clone. Only .scad files passed to OpenSCAD compiler. Warning dialog on clone from external source.</mitigation>
+      </T8_malicious_repo>
+    </threat_model>
+
+    <compliance>
+      - All user data stored locally only (no server, no telemetry in V1)
+      - Secrets encrypted via OS credential store
+      - GDPR compliant: no personal data collection
+      - CSP strict in Electron
+      - Subprocess sandboxed: no shell, whitelisted arguments
+      - Dependency audit in CI
+    </compliance>
+  </security>
+
+  <performance>
+    <targets>
+      - App startup: under 3 seconds (launch to editor ready)
+      - OpenSCAD compilation (simple model): under 5 seconds
+      - OpenSCAD compilation (complex model): under 30 seconds (timeout beyond)
+      - Viewer 3D FPS (under 500K triangles): 60 FPS minimum
+      - AI first token response: under 10 seconds (streaming)
+      - Memory at rest: under 300 MB
+      - Memory under load (1M triangle model + editor + chat): under 800 MB
+    </targets>
+
+    <optimizations>
+      - Incremental compilation cache: SHA256 hash of file content, skip recompilation if unchanged
+      - Debounced compilation: 1500ms delay after last keystroke
+      - Lazy loading: STL parsed and loaded into scene only when viewer panel is visible
+      - Level of Detail: auto mesh simplification for models over 500K triangles (original preserved for export)
+      - Web Worker STL parsing: non-blocking UI thread
+      - Compilation queue: serialize to one process at a time, cancel previous on new request
+    </optimizations>
+
+    <minimum_system_requirements>
+      - OS: Windows 10+, macOS 11+, Ubuntu 20.04+
+      - RAM: 4 GB minimum, 8 GB recommended
+      - Disk: 500 MB for installation, 1 GB+ with projects
+      - GPU: Intel HD 4000+ integrated (dedicated recommended for complex models)
+      - Network: none required except for AI and Git remote
+    </minimum_system_requirements>
+  </performance>
+
+  <ui_layout>
+    <main_structure>
+      - Top bar: application menu, project name, compilation status indicator, theme toggle
+      - Left sidebar: project file tree (collapsible)
+      - Center split: Monaco Editor (top or left) and 3D Viewer (bottom or right), resizable divider
+      - Right sidebar: Chat/AI panel (collapsible) or Git panel (tab-switchable)
+      - Bottom bar: status line (Git branch, file encoding, cursor position, compilation status)
+    </main_structure>
+
+    <editor_area>
+      - Tab bar for open files with unsaved indicator (dot)
+      - Monaco Editor with OpenSCAD syntax
+      - Status bar: line/col, encoding, language mode
+      - Error/warning count badge
+    </editor_area>
+
+    <viewer_area>
+      - 3D canvas filling available space
+      - Floating toolbar: display mode toggle, measurement tool, screenshot, home view
+      - Axes indicator in corner
+      - Optional grid overlay
+    </viewer_area>
+
+    <chat_panel>
+      - Scrollable message history (user messages + Claude responses)
+      - Code blocks in responses with "Apply to Editor" button
+      - Agent mode toggle with iteration counter display
+      - Token usage indicator
+      - Input field with send button and keyboard shortcut (Enter)
+    </chat_panel>
+
+    <git_panel>
+      - Status section: changed files list with staging checkboxes
+      - Commit section: message input + commit button
+      - Branch selector dropdown with create/switch
+      - Log section: scrollable commit list
+      - Remote section: push/pull buttons with sync status
+    </git_panel>
+
+    <modals_and_dialogs>
+      - Settings modal (preferences, API key input, Git remote config)
+      - AI consent dialog (first use: data sent to Anthropic)
+      - Clone repo dialog (URL input + warning for external repos)
+      - Export dialog (format selection, output path)
+      - Merge conflict resolution dialog (keep mine / keep theirs / edit manually)
+      - About dialog (version, licenses, OpenSCAD version)
+    </modals_and_dialogs>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      - Primary: #3B82F6 (blue — actions, links, active states)
+      - Secondary: #10B981 (green — success, compilation OK, Git synced)
+      - Accent: #F59E0B (amber — warnings, AI agent active)
+      - Error: #EF4444 (red — compilation errors, Git conflicts)
+      - Background dark: #1a1a2e
+      - Surface dark: #16213e
+      - Background light: #FFFFFF
+      - Surface light: #F5F5F5
+      - Text dark mode: #E5E5E5
+      - Text light mode: #1F2937
+      - Border dark: #404040
+      - Border light: #E5E5E5
+      - Viewer default background: #1a1a2e
+    </color_palette>
+
+    <typography>
+      - UI font: Inter, system-ui, -apple-system, sans-serif
+      - Code font: JetBrains Mono, Consolas, monospace (Monaco Editor default)
+      - Headings: font-semibold
+      - Body: font-normal, leading-relaxed
+    </typography>
+
+    <components>
+      <buttons>
+        - Primary: colored background, white text, rounded-md, hover darken
+        - Secondary: border style, transparent bg, hover fill
+        - Ghost: transparent, hover subtle background
+        - Icon buttons: square, tooltip on hover
+        - Danger: red variant for destructive actions (delete file, remove remote)
+      </buttons>
+      <inputs>
+        - Rounded borders with focus ring (ring-blue-500)
+        - Placeholder text in muted color
+        - Error state: red border + error message below
+        - Disabled state: reduced opacity
+      </inputs>
+      <panels>
+        - Resizable via drag handle between editor/viewer and sidebars
+        - Collapsible sidebars with toggle buttons
+        - Tab-based switching for right sidebar (Chat / Git)
+      </panels>
+    </components>
+
+    <animations>
+      - Panel resize: smooth transition (150ms)
+      - Toast notifications: slide-in from top-right, auto-dismiss 3s
+      - Compilation spinner: rotating indicator in status bar
+      - Chat message appear: fade-in (200ms)
+      - Modal open/close: fade + scale (200ms)
+      - 3D model load: fade-in mesh opacity (300ms)
+    </animations>
+  </design_system>
+
+  <key_interactions>
+    <flow_edit_and_preview>
+      1. User opens a project folder
+      2. File tree populates in left sidebar
+      3. User clicks a .scad file — opens in Monaco Editor
+      4. User writes or modifies OpenSCAD code
+      5. After 1500ms inactivity, auto-compilation triggers
+      6. Status bar shows "Compiling…"
+      7. If success: STL loads in Viewer 3D, status shows "✓ Ready"
+      8. If error: error markers appear inline in editor, status shows "✗ Error"
+    </flow_edit_and_preview>
+
+    <flow_ai_chat>
+      1. User opens Chat panel (right sidebar)
+      2. Types natural language request: "Fais un boîtier 100x60x30mm avec ventilation"
+      3. Context Builder assembles prompt (current code + file structure + conversation history)
+      4. Claude responds with OpenSCAD code block (streamed)
+      5. User clicks "Apply to Editor" — code replaces or inserts at cursor
+      6. Auto-compilation triggers — model appears in Viewer
+    </flow_ai_chat>
+
+    <flow_ai_agent>
+      1. User activates Agent mode in Chat panel
+      2. Describes desired model
+      3. Agent generates code → sends to compiler → evaluates result
+      4. If compilation error: agent sends error to Claude for correction → loop
+      5. After max iterations or success: agent presents final code with diff view
+      6. User confirms or rejects — code is applied or reverted
+    </flow_ai_agent>
+
+    <flow_git_commit>
+      1. User opens Git panel (right sidebar tab)
+      2. Changed files displayed with checkboxes
+      3. User stages files (check individual or "Stage All")
+      4. Types commit message in input field
+      5. Clicks "Commit" button
+      6. Commit appears in log below
+      7. If remote configured: "Push" button enabled with pending commit count
+    </flow_git_commit>
+
+    <flow_first_ai_setup>
+      1. User opens Settings → API Key section
+      2. Enters Anthropic API key
+      3. Key encrypted via electron.safeStorage and stored
+      4. Chat panel unlocks
+      5. On first message: consent dialog appears (data sent to Anthropic API)
+      6. User accepts — AI features fully enabled
+    </flow_first_ai_setup>
+
+    <flow_export>
+      1. User clicks Export button in viewer toolbar or File menu
+      2. Export dialog opens: format selector (STL, OBJ, AMF, 3MF), output path
+      3. User selects format and destination
+      4. OpenSCAD CLI runs with appropriate output flag
+      5. Success toast notification with "Open in Finder/Explorer" link
+    </flow_export>
+  </key_interactions>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Foundation — Electron + Vite + React + IPC Framework</title>
+      <duration>3 weeks</duration>
+      <tasks>
+        - Initialize Electron project with Vite + React + TypeScript
+        - Set up Main Process entry point with IPC router
+        - Implement contextBridge preload with typed channel definitions
+        - Configure electron.safeStorage keystore service
+        - Set up Zustand stores skeleton
+        - Configure strict CSP and Electron security settings (nodeIntegration: false, contextIsolation: true, sandbox: true)
+        - Embed OpenSCAD binaries per platform in resources/
+        - Set up electron-builder configuration for multi-platform builds
+        - Configure Vitest for unit testing
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>Core Editor and Compilation Pipeline</title>
+      <duration>3 weeks</duration>
+      <tasks>
+        - Integrate Monaco Editor with custom OpenSCAD language definition (syntax highlighting, bracket matching)
+        - Implement multi-file tab system with unsaved indicator
+        - Build OpenScadRunner service (spawn, timeout, kill, error parsing)
+        - Implement debounced auto-compilation (1500ms)
+        - Wire editor save → IPC → compile → result flow
+        - Parse OpenSCAD stderr into structured errors
+        - Display error markers in Monaco via setModelMarkers
+        - Add compilation status indicator in status bar
+        - Implement find/replace (file and project-wide)
+        - Add auto-indentation for OpenSCAD blocks
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>3D Viewer and Export</title>
+      <duration>2.5 weeks</duration>
+      <tasks>
+        - Set up React Three Fiber canvas with OrbitControls
+        - Implement STL loader (ASCII + binary) with Web Worker parsing
+        - Add reference grid (XY plane, mm graduation) and colored axes
+        - Configure default lighting (ambient + 2 directional)
+        - Wire compilation result → STL buffer → viewer update flow
+        - Implement display modes (solid, wireframe, solid+wireframe)
+        - Add home/reset view button
+        - Build export dialog (format selection via OpenSCAD CLI flags)
+        - Implement viewport screenshot capture (canvas.toDataURL)
+        - Add LOD auto-simplification for large models (> 500K triangles)
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>Project Management and File System</title>
+      <duration>1.5 weeks</duration>
+      <tasks>
+        - Build file tree component with type-based icons
+        - Implement folder opening as project
+        - Add create / rename / delete with context menu
+        - Set up chokidar file watcher for external changes
+        - Implement path jail validation on all file operations
+        - Build recent projects list (persisted in electron-store)
+        - Implement symlink resolution and rejection for out-of-project targets
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>Git Integration</title>
+      <duration>4 weeks</duration>
+      <tasks>
+        - Integrate isomorphic-git for init, status, add, commit, log
+        - Build Git panel UI (status, staging, commit message, log)
+        - Implement diff view using Monaco diff editor (split view)
+        - Add branch management (create, switch, list)
+        - Implement merge (fast-forward) with conflict detection and alert
+        - Build remote configuration UI (URL + token input)
+        - Implement push/pull with token authentication (onAuth callback)
+        - Implement clone from HTTPS remote
+        - Auto-generate .gitignore for build artifacts
+        - Store Git tokens in OS keystore (same mechanism as API key)
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>AI Assistant — Chat and Agent</title>
+      <duration>4 weeks</duration>
+      <tasks>
+        - Build Chat panel UI (message history, code blocks, streaming display)
+        - Implement Claude API client in Main Process using Agent SDK
+        - Build Context Builder (current code + errors + project structure + conversation history)
+        - Implement context truncation logic (80% window limit)
+        - Add "Apply to Editor" button for code blocks (insert/replace)
+        - Implement streaming response display (SSE)
+        - Build Agent iterative mode (generate → compile → analyze → correct loop)
+        - Add iteration limit and token budget controls
+        - Implement cancel/revert mechanism for agent modifications
+        - Add consent dialog for first AI use
+        - Persist conversation history per project (JSON)
+        - Add system prompt configuration for OpenSCAD expert role
+      </tasks>
+    </step>
+
+    <step number="7">
+      <title>Settings, Polish, and Security Hardening</title>
+      <duration>2 weeks</duration>
+      <tasks>
+        - Build Settings modal (all preferences from settings spec)
+        - Implement dark/light theme toggle with Tailwind
+        - Add toast notification system
+        - Implement keyboard shortcuts (compile, save, commit, toggle panels)
+        - Add code folding, minimap, auto-complete for OpenSCAD
+        - Implement measurement tool in viewer
+        - Add loading states and skeleton loaders
+        - Security audit: verify CSP, path traversal tests, API key isolation tests
+        - Verify no API key in Renderer process memory
+        - Test argument injection via filenames and OpenSCAD variables
+      </tasks>
+    </step>
+
+    <step number="8">
+      <title>Testing, E2E, and Distribution</title>
+      <duration>2.5 weeks</duration>
+      <tasks>
+        - Write unit tests for Main Process services (OpenScadRunner, GitService, ClaudeAgent, ContextBuilder) — target 80%+ coverage
+        - Write integration tests for IPC flows (editor → compile → viewer, chat → API → editor)
+        - Write component tests for React components (Editor, Viewer, Chat, Git panel) — target 60%+
+        - Set up Playwright E2E tests for critical user flows (US-01 through US-14)
+        - Security-specific tests: path traversal, argument injection, CSP enforcement, credential isolation
+        - Set up GitHub Actions CI: lint, typecheck, test, npm audit on every push
+        - Configure electron-builder matrix builds (Windows NSIS, macOS DMG with notarization, Linux AppImage + .deb)
+        - Set up electron-updater for auto-update via GitHub Releases
+        - Smoke tests post-build on each platform
+        - Tag v1.0.0 release
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <moscow_prioritization>
+    <must_have>
+      - Monaco Editor with OpenSCAD syntax highlighting
+      - OpenSCAD compilation via subprocess with error parsing
+      - 3D Viewer (STL render, orbital controls, grid, axes, lighting)
+      - STL export
+      - Git init / commit / status / log / diff
+      - Project manager (file tree, open folder)
+      - Secure keystore (API key + Git tokens via OS credential store)
+      - Chat AI with automatic code context
+      - Agent iterative mode with iteration limit
+      - Inline error markers in editor
+      - Strict CSP + Electron sandboxing
+      - Debounced auto-compilation
+      - Auto-generated .gitignore
+      - Path jail on all filesystem operations
+    </must_have>
+
+    <should_have>
+      - Git branches / merge / push / pull / clone
+      - AI response streaming
+      - Diff between commits
+      - Viewport screenshot
+      - Display modes (wireframe, solid, solid+wireframe)
+      - Code folding and minimap
+      - Dark / light theme
+      - Home/reset view in viewer
+      - Auto-update via electron-updater
+      - Recent projects list
+      - Token budget configuration
+      - User confirmation before AI code application
+      - Basic auto-complete for OpenSCAD
+      - Multi-language chat (French + English)
+    </should_have>
+
+    <could_have>
+      - AMF / 3MF export formats
+      - Clipping planes in viewer
+      - Drag-and-drop in file tree
+      - OpenSCAD snippets library
+      - Point-to-point measurement tool
+      - 3D model visual diff between commits
+      - Configurable viewer background color
+    </could_have>
+
+    <wont_have_v1>
+      - SSH support for Git remotes
+      - Interactive rebase
+      - Multi-window support
+      - Extension/plugin marketplace
+      - Real-time collaboration
+      - Direct slicer integration
+      - Support for other CAD languages (CadQuery, JSCAD)
+      - Photorealistic rendering
+      - Git submodules
+    </wont_have_v1>
+  </moscow_prioritization>
+
+  <risks>
+    <risk id="R1">
+      <name>Excessive bundle size</name>
+      <description>Electron + OpenSCAD + Monaco may exceed 400MB</description>
+      <probability>High</probability>
+      <impact>Medium</impact>
+      <mitigation>Binary compression, aggressive tree-shaking, regular size monitoring. Accepted as tradeoff for UX.</mitigation>
+    </risk>
+    <risk id="R2">
+      <name>isomorphic-git performance on large repos</name>
+      <probability>Medium</probability>
+      <impact>Medium</impact>
+      <mitigation>Paginate history display, async operations with progress indicator, document recommendation for repos under 10K commits.</mitigation>
+    </risk>
+    <risk id="R3">
+      <name>Cross-platform OpenSCAD binary compatibility</name>
+      <probability>Medium</probability>
+      <impact>High</impact>
+      <mitigation>CI tests on all 3 platforms, individual binary validation. Fallback: allow user to specify external OpenSCAD binary path.</mitigation>
+    </risk>
+    <risk id="R4">
+      <name>Anthropic API / Agent SDK breaking changes</name>
+      <probability>Low</probability>
+      <impact>High</impact>
+      <mitigation>Abstract API client behind internal interface. Strict SDK version pinning.</mitigation>
+    </risk>
+    <risk id="R5">
+      <name>API cost for agent iteration loops</name>
+      <probability>Medium</probability>
+      <impact>Medium</impact>
+      <mitigation>Configurable and visible iteration + token limits. Cost estimate displayed before agent launch.</mitigation>
+    </risk>
+    <risk id="R6">
+      <name>Merge conflicts overwhelming non-developers</name>
+      <probability>High</probability>
+      <impact>Medium</impact>
+      <mitigation>Simplified conflict resolution UI (keep mine / keep theirs / edit). In-app documentation.</mitigation>
+    </risk>
+    <risk id="R7">
+      <name>Multi-platform packaging complexity</name>
+      <probability>Medium</probability>
+      <impact>Medium</impact>
+      <mitigation>GitHub Actions matrix build. Automated post-build smoke tests per OS.</mitigation>
+    </risk>
+    <risk id="R8">
+      <name>Claude API latency in agent mode</name>
+      <probability>Medium</probability>
+      <impact>Medium</impact>
+      <mitigation>Streaming for immediate feedback. Clear progress indicator. Configurable timeout.</mitigation>
+    </risk>
+  </risks>
+
+  <success_criteria>
+    <functionality>
+      - All MUST features operational and tested
+      - OpenSCAD compilation produces correct STL output
+      - Git operations (init, commit, push, pull) work reliably with GitHub/GitLab
+      - AI chat generates valid, compilable OpenSCAD code for common model types
+      - Agent iterative mode self-corrects compilation errors within 3-5 iterations
+      - No data loss: files saved correctly, Git history intact, preferences persisted
+    </functionality>
+
+    <user_experience>
+      - Single installer, zero external dependencies to configure
+      - App fully functional offline (except AI and Git remote)
+      - Edit-to-preview cycle under 5 seconds for simple models
+      - AI generates useful models from natural language descriptions
+      - Intuitive Git workflow accessible to non-developers
+    </user_experience>
+
+    <technical_quality>
+      - Unit test coverage: 80%+ on Main Process services
+      - Integration test coverage: 70%+ on IPC flows
+      - E2E tests pass for all 14 user stories
+      - Zero critical security vulnerabilities (path traversal, injection, credential leak)
+      - CSP enforced, subprocess sandboxed, credentials encrypted
+    </technical_quality>
+
+    <performance>
+      - Startup under 3 seconds
+      - 60 FPS viewer for models under 500K triangles
+      - Memory under 800 MB under typical load
+      - Builds successfully on Windows, macOS, and Linux
+    </performance>
+
+    <design_polish>
+      - Consistent dark and light themes
+      - Smooth panel resize and modal transitions
+      - Professional appearance comparable to VS Code / modern IDE
+      - No layout overflow or broken states
+      - Responsive to window resizing
+    </design_polish>
+  </success_criteria>
+</project_specification>

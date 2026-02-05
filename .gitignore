@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+*.log
+tsconfig.node.tsbuildinfo
+tmp-electron/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Autocoder
+.autocoder/.agent.lock
+.autocoder/features.db-shm
+.autocoder/features.db-wal
+.autocoder/*.bak
+claude-progress.txt
+.autocoder/claude-progress.txt
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Test coverage
+coverage/
+
+# Test temp files
+.tmp/
+test-results/
