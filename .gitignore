@@ -37,3 +37,6 @@ coverage/
 # Test temp files
 .tmp/
 test-results/
+
+# Packaging output
+release/

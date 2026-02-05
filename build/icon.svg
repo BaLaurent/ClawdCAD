@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="32" y="32" width="960" height="960" rx="200" ry="200" fill="url(#bg)"/>
+  <!-- Inner subtle border -->
+  <rect x="64" y="64" width="896" height="896" rx="170" ry="170" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4"/>
+  <!-- Grid lines (CAD feel) -->
+  <line x1="200" y1="180" x2="200" y2="844" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="400" y1="180" x2="400" y2="844" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="600" y1="180" x2="600" y2="844" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="800" y1="180" x2="800" y2="844" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="180" y1="300" x2="844" y2="300" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="180" y1="500" x2="844" y2="500" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <line x1="180" y1="700" x2="844" y2="700" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <!-- 3D cube wireframe (CAD reference) -->
+  <g stroke="rgba(255,255,255,0.12)" stroke-width="3" fill="none">
+    <!-- Back face -->
+    <rect x="620" y="160" width="200" height="200"/>
+    <!-- Front face -->
+    <rect x="540" y="240" width="200" height="200"/>
+    <!-- Connecting edges -->
+    <line x1="620" y1="160" x2="540" y2="240"/>
+    <line x1="820" y1="160" x2="740" y2="240"/>
+    <line x1="820" y1="360" x2="740" y2="440"/>
+    <line x1="620" y1="360" x2="540" y2="440"/>
+  </g>
+  <!-- Letter C -->
+  <text x="512" y="600" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="520" fill="white" text-anchor="middle" dominant-baseline="central" letter-spacing="-20">C</text>
+  <!-- Subtle shadow on C -->
+  <text x="516" y="604" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="520" fill="rgba(0,0,0,0.15)" text-anchor="middle" dominant-baseline="central" letter-spacing="-20">C</text>
+  <!-- Main C on top -->
+  <text x="512" y="600" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="520" fill="white" text-anchor="middle" dominant-baseline="central" letter-spacing="-20">C</text>
+</svg>

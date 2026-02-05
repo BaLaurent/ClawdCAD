@@ -9,6 +9,50 @@ ClawdCAD is an Electron desktop app that bundles a Monaco code editor, Three.js 
 
 ---
 
+## Download
+
+Pre-built binaries for v0.1.0:
+
+| Platform | File | Size |
+|----------|------|------|
+| Windows | [ClawdCAD Setup 0.1.0.exe](https://github.com/BaLaurent/claude-openscad/releases/tag/v0.1.0) | 133 MB |
+| Linux (AppImage) | [ClawdCAD-0.1.0.AppImage](https://github.com/BaLaurent/claude-openscad/releases/tag/v0.1.0) | 182 MB |
+| Linux (Debian/Ubuntu) | [ClawdCAD_0.1.0_amd64.deb](https://github.com/BaLaurent/claude-openscad/releases/tag/v0.1.0) | 139 MB |
+
+> macOS builds are not yet available (requires a macOS machine or CI to build).
+
+## Installation
+
+### Windows
+
+Run `ClawdCAD Setup 0.1.0.exe`. The installer lets you choose the installation directory. You may see a SmartScreen warning on first launch — the installer is not code-signed yet.
+
+### Linux (AppImage)
+
+```bash
+chmod +x ClawdCAD-0.1.0.AppImage
+./ClawdCAD-0.1.0.AppImage
+```
+
+### Linux (Debian/Ubuntu)
+
+```bash
+sudo dpkg -i ClawdCAD_0.1.0_amd64.deb
+```
+
+### Runtime Dependencies
+
+ClawdCAD runs standalone, but two external tools extend its capabilities:
+
+| Dependency | Required? | Purpose |
+|------------|-----------|---------|
+| [OpenSCAD](https://openscad.org/) 2021.01+ | **Yes** — for 3D compilation | Detected automatically, or set path in Settings |
+| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) | Optional | Enables the AI assistant (must be authenticated via `claude auth login`) |
+
+> Everything except 3D compilation and AI chat works without these dependencies.
+
+---
+
 ## Features
 
 - **Monaco Code Editor** — Full OpenSCAD syntax highlighting, autocomplete, and multi-file editing
@@ -19,31 +63,29 @@ ClawdCAD is an Electron desktop app that bundles a Monaco code editor, Three.js 
 - **Light & Dark Themes** — Tailwind-driven theming with `dark:` class system
 - **Offline-First** — No server required. Runs entirely on your machine (Claude CLI must be authenticated)
 
-## Prerequisites
+## Building from Source
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| [Node.js](https://nodejs.org/) | 20+ | Runtime & build |
-| [OpenSCAD](https://openscad.org/) | 2021.01+ | 3D compilation engine |
-| [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) | Latest | AI assistant backend |
-
-> **Note:** Claude Code CLI must be installed and authenticated (`claude auth login`) for the AI chat to work. Everything else works without it.
-
-## Quick Start
+Requires [Node.js](https://nodejs.org/) 20+ and npm.
 
 ```bash
 # Clone
 git clone https://github.com/BaLaurent/claude-openscad.git
 cd claude-openscad
 
-# Install
+# Install dependencies
 npm install
 
-# Run
+# Development (hot reload)
 npm run dev
+
+# Build production executables
+npm run dist:linux    # AppImage + .deb
+npm run dist:win      # NSIS installer (needs Wine on Linux)
+npm run dist:mac      # DMG (needs macOS)
+npm run dist          # Current platform
 ```
 
-This starts both the Vite dev server (port 5173) and Electron concurrently.
+Development mode starts both the Vite dev server (port 5173) and Electron concurrently. Built packages are output to `release/`.
 
 ## Scripts
 
@@ -59,6 +101,10 @@ This starts both the Vite dev server (port 5173) and Electron concurrently.
 | `npm run test:e2e` | Playwright end-to-end tests |
 | `npm run lint` | ESLint |
 | `npm run type-check` | TypeScript type checking |
+| `npm run dist` | Build + package for current platform |
+| `npm run dist:linux` | Build + package AppImage & .deb |
+| `npm run dist:win` | Build + package Windows NSIS installer |
+| `npm run dist:mac` | Build + package macOS DMG |
 
 ## Architecture
 

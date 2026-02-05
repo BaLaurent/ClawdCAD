@@ -21,7 +21,11 @@
     "test:coverage": "TMPDIR=$PWD/.tmp vitest run --coverage",
     "test:e2e": "npm run build && TMPDIR=$PWD/.tmp PLAYWRIGHT_BROWSERS_PATH=$PWD/.tmp/playwright npx playwright test",
     "test:e2e:headed": "npm run build && TMPDIR=$PWD/.tmp PLAYWRIGHT_BROWSERS_PATH=$PWD/.tmp/playwright npx playwright test --headed",
-    "fix-lint": "node -e \"require('fs').writeFileSync('fix.js', Buffer.from('Y29uc3QgZnMgPSByZXF1aXJlKCdmcycpOwpjb25zdCBwYXRoID0gcmVxdWlyZSgncGF0aCcpOwoKY29uc3QgcHJvamVjdFJvb3QgPSBwcm9jZXNzLmN3ZCgpOwoKLy8gRml4IGUyZS9hcHAtbGF1bmNoLnNwZWMudHMKY29uc3QgZTJlUGF0aCA9IHBhdGguam9pbihwcm9qZWN0Um9vdCwgJ2UyZS9hcHAtbGF1bmNoLnNwZWMudHMnKTsKbGV0IGUyZSA9IGZzLnJlYWRGaWxlU3luYyhlMmVQYXRoLCAndXRmOCcpOwplMmUgPSBlMmUucmVwbGFjZSgvXCh3aW5kb3cgYXMgYW55XCkuZWxlY3Ryb25BUEkvZywgJyh3aW5kb3cgYXMgdW5rbm93biBhcyB7IGVsZWN0cm9uQVBJPzogdW5rbm93biB9KS5lbGVjdHJvbkFQSScpOwplMmUgPSBlMmUucmVwbGFjZSgvXCh3aW5kb3cgYXMgYW55XCkuZWxlY3Ryb25BUEkucGxhdGZvcm0vZywgJyh3aW5kb3cgYXMgdW5rbm93biBhcyB7IGVsZWN0cm9uQVBJOiB7IHBsYXRmb3JtOiBzdHJpbmcgfSB9KS5lbGVjdHJvbkFQSS5wbGF0Zm9ybScpOwpmc193cml0ZUZpbGVTeW5jKGUyZVBhdGgsIGUyZSwgJ3V0ZjgnKTsKY29uc29sZS5sb2coJ0ZpeGVkIGUyZS9hcHAtbGF1bmNoLnNwZWMudHMnKTsK', 'base64'))\" && node fix.js && rm fix.js"
+    "fix-lint": "node -e \"require('fs').writeFileSync('fix.js', Buffer.from('Y29uc3QgZnMgPSByZXF1aXJlKCdmcycpOwpjb25zdCBwYXRoID0gcmVxdWlyZSgncGF0aCcpOwoKY29uc3QgcHJvamVjdFJvb3QgPSBwcm9jZXNzLmN3ZCgpOwoKLy8gRml4IGUyZS9hcHAtbGF1bmNoLnNwZWMudHMKY29uc3QgZTJlUGF0aCA9IHBhdGguam9pbihwcm9qZWN0Um9vdCwgJ2UyZS9hcHAtbGF1bmNoLnNwZWMudHMnKTsKbGV0IGUyZSA9IGZzLnJlYWRGaWxlU3luYyhlMmVQYXRoLCAndXRmOCcpOwplMmUgPSBlMmUucmVwbGFjZSgvXCh3aW5kb3cgYXMgYW55XCkuZWxlY3Ryb25BUEkvZywgJyh3aW5kb3cgYXMgdW5rbm93biBhcyB7IGVsZWN0cm9uQVBJPzogdW5rbm93biB9KS5lbGVjdHJvbkFQSScpOwplMmUgPSBlMmUucmVwbGFjZSgvXCh3aW5kb3cgYXMgYW55XCkuZWxlY3Ryb25BUEkucGxhdGZvcm0vZywgJyh3aW5kb3cgYXMgdW5rbm93biBhcyB7IGVsZWN0cm9uQVBJOiB7IHBsYXRmb3JtOiBzdHJpbmcgfSB9KS5lbGVjdHJvbkFQSS5wbGF0Zm9ybScpOwpmc193cml0ZUZpbGVTeW5jKGUyZVBhdGgsIGUyZSwgJ3V0ZjgnKTsKY29uc29sZS5sb2coJ0ZpeGVkIGUyZS9hcHAtbGF1bmNoLnNwZWMudHMnKTsK', 'base64'))\" && node fix.js && rm fix.js",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
   },
   "keywords": [
     "openscad",
@@ -30,7 +34,10 @@
     "electron",
     "parametric-design"
   ],
-  "author": "ClawdCAD Team",
+  "author": {
+    "name": "ClawdCAD Team",
+    "email": "team@clawdcad.dev"
+  },
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.31",
@@ -62,6 +69,7 @@
     "autoprefixer": "^10.4.17",
     "concurrently": "^8.2.2",
     "electron": "^28.1.0",
+    "electron-builder": "^26.7.0",
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -72,5 +80,42 @@
     "vite": "^5.0.11",
     "vitest": "^4.0.18"
   },
-  "type": "commonjs"
+  "type": "commonjs",
+  "build": {
+    "appId": "com.clawdcad.app",
+    "productName": "ClawdCAD",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/main/**/*",
+      "!dist/main/**/__tests__/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/openscad",
+        "to": "openscad",
+        "filter": ["**/*", "!.gitkeep"]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "build/icon.png",
+      "category": "Graphics"
+    }
+  }
 }
