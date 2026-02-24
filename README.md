@@ -1,5 +1,7 @@
 # ClawdCAD
 
+### Depression warning: I'm no longer working on ClawdCAD since [I'm developing Agent Desktop. Check it out.](https://github.com/BaLaurent/agent-desktop)
+
 **Parametric 3D modeling with AI, powered by OpenSCAD and Claude.**
 
 ClawdCAD is an Electron desktop app that bundles a Monaco code editor, Three.js 3D viewer, Claude AI assistant, and full Git integration into a single offline-first shell. Write OpenSCAD code, see live 3D previews with per-face colors, and let Claude help you design — all without leaving the app.
