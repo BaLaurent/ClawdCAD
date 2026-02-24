@@ -1,6 +1,6 @@
 # ClawdCAD
 
-### Depression warning: I'm no longer working on ClawdCAD since [I'm developing Agent Desktop. Check it out.](https://github.com/BaLaurent/agent-desktop)
+### Depression warning: I'm no longer working on ClawdCAD since [I'm developing Agent Desktop which have all clawdCad features and more. Check it out.](https://github.com/BaLaurent/agent-desktop)
 
 **Parametric 3D modeling with AI, powered by OpenSCAD and Claude.**
 
